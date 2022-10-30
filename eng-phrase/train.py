@@ -32,11 +32,12 @@ questions = {
 }
 
 adj = ['small', 'big', 'tall', 'short', 'happy', 'sad', 'good', 'bad', 'cold', 'hot', 'strong', 'weak', 'fast', 'slow',
-       'young', 'old']
+       'young', 'old', 'friendly', 'cool', 'warm', 'hard', 'soft', 'dark', 'light', 'bright']
 
 subj = ['sharpener', 'notebook', 'book', 'ruler', 'rubber', 'pencil case', 'pen', 'pencil', 'felt-tip pen', 'crayons',
         'phone', 'scissors', 'lion', 'giraffe', 'tiger', 'elephant', 'gorilla', 'hippo', 'zebra', 'monkey', 'alligator',
-        'rhino', 'parrot', 'cheetah']
+        'rhino', 'parrot', 'cheetah', 'fish', 'phone', 'table', 'door', 'paper', 'machine', 'time', 'car', 'photo',
+        'watch', 'mouse', 'week', 'heart', 'cable']
 
 forms = ['P', 'N', 'Q']
 g_number = ['s', 'p']
