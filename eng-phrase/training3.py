@@ -27,7 +27,8 @@ def main():
             print("Correct!")
             current_question += 1
         else:
-            print(f"Wrong! Correct answer: {correct_answer}")
+            # print(f"Wrong! Correct answer: {correct_answer}")
+            print(f"Wrong!")
             all_done = False
             break
 
