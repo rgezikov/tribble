@@ -1,0 +1,3 @@
+[submodule "rus-nouns/Russian-Nouns"]
+	path = rus-nouns/Russian-Nouns
+	url = https://github.com/Harrix/Russian-Nouns.git
