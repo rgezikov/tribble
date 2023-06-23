@@ -1,3 +1,6 @@
+import argparse
+import sys
+
 import numpy as np
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -77,43 +80,47 @@ class WordScheme:
 class WordsDB:
     NOUNS_FILE_NAME = os.path.abspath(os.path.join(THIS_SCRIPT_PATH, 'Russian-Nouns', 'dist', 'russian_nouns.txt'))
     LETTERS_NUM = 5
+    COUNT_REPEATING_LETTERS = False
 
     def __init__(self):
         self.letter_counter: Dict[str, int] = None
         self.word_weights: Dict[str, int] = None
-        self.words = self.get_nouns(WordsDB.LETTERS_NUM)
+        self.words = self.get_nouns()
         self.calculate_statistics()
 
-    @staticmethod
-    def get_nouns(word_len:int):
+    def get_nouns(self):
         with open(WordsDB.NOUNS_FILE_NAME, 'r') as nouns_file:
             nouns = [line.strip() for line in nouns_file]
-        nouns = list(filter(lambda x: len(x) == word_len, nouns))
+        nouns = list(filter(lambda x: len(x) == self.LETTERS_NUM, nouns))
         nouns = [x for x in nouns if '-' not in x]
         nouns = [x.replace('ё', 'е') for x in nouns]
         return nouns
 
-    @staticmethod
-    def word_weight(letter_counter:dict, word:str):
+    def word_weight(self, word:str):
         weight = 0
         used_letters = ""
-        for letter in word:
+        for index, letter in enumerate(word, start=1):
             if letter not in used_letters:
-                weight += letter_counter[letter]
+                weight += self.letter_counter[letter][index]
                 used_letters += letter
+            elif self.COUNT_REPEATING_LETTERS:
+                weight += (self.letter_counter[letter][index] / 2)
+
         return weight
 
 
     def calculate_statistics(self):
         self.letter_counter =  {}
+        # Each letter weight depending on letters position in the word, starting from one
+        # zero cell - sum of those weights
         for letter in RUSSIAN_LETTERS:
-            self.letter_counter[letter] = 0
+            self.letter_counter[letter] = [0] * (self.LETTERS_NUM + 1)
         for word in self.words:
-            for letter in word:
-                self.letter_counter[letter] += 1
+            for index, letter in enumerate(word, start=1):
+                self.letter_counter[letter][index] += 1
         self.word_weights = {}
         for word in self.words:
-            self.word_weights[word] = self.word_weight(self.letter_counter, word)
+            self.word_weights[word] = self.word_weight(word)
 
     def get_matching_words(self, present, not_allowed, regex):
         regex_comp = re.compile(regex) if regex else None
@@ -192,8 +199,66 @@ def solve_function(word_list:List[str], results):
 
 init_words = []
 
-if __name__ == "__main__":
+def assess_combinations(wdb, args):
+    show_three = args.num_words == 3
+    max_sorted = args.depth
+    best_weight = 0
+    regex_str = "." * args.word_width
+    suitable_words_l0 = wdb.get_matching_words("", "", regex_str)
+    suitable_words_l0 = sorted(suitable_words_l0, key=lambda x: wdb.word_weight(x), reverse=True)[:max_sorted]
+    for sw0 in suitable_words_l0:
+        used_letters = sw0
+        suitable_words_l1 = wdb.get_matching_words("", used_letters, regex_str)
+        suitable_words_l1 = sorted(suitable_words_l1, key=lambda x: wdb.word_weight(x), reverse=True)[:max_sorted]
+        current_combination = [sw0]
+        for sw1 in suitable_words_l1:
+            current_combination = [sw0, sw1]
+            if show_three:
+                used_letters = sw0 + sw1
+                suitable_words_l2 = wdb.get_matching_words("", used_letters, regex_str)
+                suitable_words_l2 = sorted(suitable_words_l2, key=lambda x: wdb.word_weight(x), reverse=True)
+                if len(suitable_words_l2) > 0:
+                    current_combination.append(suitable_words_l2[0])
+            current_weight = sum([wdb.word_weight(x) for x in current_combination])
+            if current_weight > best_weight:
+                best_weight = current_weight
+                print(best_weight, current_combination)
+
+def find_suitable(wdb, args):
+    regex_str = args.regex if args.regex is not None else "." * args.word_width
+    present = args.legal if args.legal is not None else ""
+    not_allowed = args.illegal if args.illegal is not None else ""
+    suitable_words = wdb.get_matching_words(present, not_allowed, regex_str)
+    suitable_words = sorted(suitable_words, key=lambda x: wdb.word_weight(x), reverse=True)
+    for sw in suitable_words:
+        print(sw, wdb.word_weight(sw))
+
+def main():
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument('-N', dest='word_width', required=False, type=int, default=5, help='word width')
+
+    subparsers = parser.add_subparsers(dest='command', help='sub-command help')
+
+    parser_assess = subparsers.add_parser('assess', help='assess')
+    parser_assess.add_argument('--depth', dest='depth', required=False, type=int, default=5, help='search depth')
+    parser_assess.add_argument('--nw', dest='num_words', required=False, type=int, default=3, help='num words')
+
+    parser_assess = subparsers.add_parser('solve', help='solve')
+    parser_assess.add_argument('-l', dest='legal', required=False, type=str, default=None, help='legal letters')
+    parser_assess.add_argument('-i', dest='illegal', required=False, type=str, default=None, help='illegal letters')
+    parser_assess.add_argument('-r', dest='regex', required=False, type=str, default=None, help='regex')
+
+    args = parser.parse_args()
+
+    WordsDB.LETTERS_NUM = args.word_width
     wdb = WordsDB()
+
+    if args.command == "assess":
+        assess_combinations(wdb, args)
+    elif args.command == "solve":
+        find_suitable(wdb, args)
+
+    sys.exit(0)
 
     # init_words = []
     # current_scheme = WordScheme([LetterScheme() for i in range(WordsDB.LETTERS_NUM)], "")
@@ -244,12 +309,6 @@ if __name__ == "__main__":
         print(f"hist: {hist}")
         out_hist.append(hist)
 
-    # out_hist = [
-    #     {1: 10, 2: 5, 3: 12, 4: 8, 5: 15},
-    #     {1: 8, 2: 6, 3: 10, 4: 5, 5: 12},
-    #     {1: 6, 2: 7, 3: 9, 4: 11, 5: 14}
-    # ]
-
     alpha = [1.0, 0.5, 0.7]
     labels = list(out_hist[0].keys())
     x = np.arange(len(labels))
@@ -262,3 +321,6 @@ if __name__ == "__main__":
     plt.title('Histograms')
     plt.legend()
     plt.show()
+
+if __name__ == "__main__":
+    main()
